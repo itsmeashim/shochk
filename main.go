@@ -10,84 +10,66 @@ import (
 	"os"
 )
 
-const shodanAPIURL = "https://api.shodan.io/account/profile?key="
-
-type ShodanProfile struct {
-	Member      bool   `json:"member"`
-	Credits     int    `json:"credits"`
-	DisplayName string `json:"display_name"`
-	Created     string `json:"created"`
+// Response represents the valid response structure from Shodan.
+type Response struct {
+	ScanCredits  int `json:"scan_credits"`
+	QueryCredits int `json:"query_credits"`
 }
 
-func checkAPIKey(apiKey string) {
-	resp, err := http.Get(shodanAPIURL + apiKey)
+func main() {
+	// Command-line flags
+	tokenFlag := flag.String("token", "", "Check a single Shodan API key.")
+	fileFlag := flag.String("file", "", "Check multiple Shodan API keys from a file.")
+	flag.Parse()
+
+	// Check Shodan API key from a single token input
+	if *tokenFlag != "" {
+		checkToken(*tokenFlag)
+		return
+	}
+
+	// Check Shodan API keys from a file input
+	if *fileFlag != "" {
+		file, err := os.Open(*fileFlag)
+		if err != nil {
+			fmt.Printf("Error opening file: %v\n", err)
+			return
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			checkToken(scanner.Text())
+		}
+
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("Error reading file: %v\n", err)
+		}
+		return
+	}
+
+	// Check Shodan API keys from stdin
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		checkToken(scanner.Text())
+	}
+}
+
+// checkToken sends a request to the Shodan API to check the validity of a token.
+func checkToken(token string) {
+	resp, err := http.Get("https://api.shodan.io/api-info?key=" + token)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error making the request: %v\n", err)
+		fmt.Printf("%s - Error: %v\n", token, err)
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 401 {
-		fmt.Println(apiKey, "- Invalid")
-		return
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading response body: %v\n", err)
-		return
-	}
-
-	var profile ShodanProfile
-	if err := json.Unmarshal(body, &profile); err != nil {
-		fmt.Fprintf(os.Stderr, "Error unmarshalling JSON: %v\n", err)
-		return
-	}
-
-	fmt.Println(apiKey, "- Valid (Member:", profile.Member, ", Credits:", profile.Credits, ")")
-}
-
-func checkKeysFromFile(filename string) {
-	file, err := os.Open(filename)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening the file: %v\n", err)
-		return
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		checkAPIKey(scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading the file: %v\n", err)
-	}
-}
-
-func main() {
-	var tokenFlag, fileFlag string
-	flag.StringVar(&tokenFlag, "token", "", "Specify a single Shodan API key to check.")
-	flag.StringVar(&fileFlag, "file", "", "Specify a file containing a list of Shodan API keys to check (one per line).")
-	flag.Parse()
-
-	if tokenFlag == "" && fileFlag == "" {
-		// Read from stdin
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			checkAPIKey(scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
-		}
-		return
-	}
-
-	if tokenFlag != "" {
-		checkAPIKey(tokenFlag)
-	}
-
-	if fileFlag != "" {
-		checkKeysFromFile(fileFlag)
+	if resp.StatusCode == http.StatusOK {
+		body, _ := ioutil.ReadAll(resp.Body)
+		var response Response
+		json.Unmarshal(body, &response)
+		fmt.Printf("%s - Valid (Scan Credits: %d, Query Credits: %d)\n", token, response.ScanCredits, response.QueryCredits)
+	} else {
+		fmt.Printf("%s - Invalid\n", token)
 	}
 }
