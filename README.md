@@ -13,7 +13,7 @@ YOUR_SECOND_API_KEY
 ...
 
 ▶ shochk -file keys.txt
-YOUR_FIRST_API_KEY - Valid (Member: true, Credits: 10)
+YOUR_FIRST_API_KEY - Valid (Scan Credits: 100, Query Credits: 100)
 YOUR_SECOND_API_KEY - Invalid
 ...
 ```
@@ -21,13 +21,13 @@ YOUR_SECOND_API_KEY - Invalid
 You can also pipe input from stdin:
 ```
 ▶ echo "YOUR_API_KEY" | shochk
-YOUR_API_KEY - Valid (Member: true, Credits: 10)
+YOUR_API_KEY - Valid (Scan Credits: 100, Query Credits: 100)
 ```
 
 Or check a single token:
 ```
 ▶ shochk -token YOUR_API_KEY
-YOUR_API_KEY - Valid (Member: true, Credits: 10)
+YOUR_API_KEY - Valid (Scan Credits: 100, Query Credits: 100)
 ```
 
 
